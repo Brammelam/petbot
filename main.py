@@ -26,23 +26,34 @@ def main(stdscr):
             update_wandering(state, DEFAULT_PEN_WIDTH, DEFAULT_PEN_HEIGHT)
             update_ball(state, DEFAULT_PEN_WIDTH)
             update_speech(state)
-            if frame_index % 3 == 0:  # every 3 frames regardless of FPS
+            if frame_index % 3 == 0:
                 update_behavior(state)
 
+            # --- Frame selection ---
             frames = get_frames(state, action_mode)
-            frame_to_draw = frames[state.get("action_frame", 0) % len(frames)]
+            if action_mode in ("feed", "play", "pet"):
+                # use per-action animation counter
+                frame_to_draw = frames[state.get("action_frame", 0) % len(frames)]
+            else:
+                # use global idle/walk/sleep frame cycle
+                frame_to_draw = frames[frame_index % len(frames)]
+
             draw_frame(stdscr, state, [frame_to_draw], frame_index, DEFAULT_PEN_WIDTH)
 
+            # --- Input handling ---
             key = stdscr.getch()
             if key != -1:
                 keep_running, action_mode = handle_input(stdscr, key, state, action_mode)
                 if not keep_running:
                     break
+
+            # --- Timing ---
             if state["behavior"] == "playing":
                 time.sleep(0.5)
             else:
                 time.sleep(1 / FPS)
-            
+
+            # --- Action timer logic ---
             if state.get("action_timer", 0) > 0:
                 state["action_timer"] -= 1
                 state["action_frame"] += 1
@@ -52,7 +63,9 @@ def main(stdscr):
                     state["action_frame"] = 0
             else:
                 state["action_frame"] = 0
+
             frame_index += 1
+
     finally:
         save_state(state)
 

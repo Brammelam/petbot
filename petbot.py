@@ -213,20 +213,34 @@ def update_wandering(state, pen_width, pen_height):
 
 
 def update_emotions(state):
-    """Slow decay over time."""
+    """Update hunger, happiness, and energy based on time away."""
     try:
         last = datetime.fromisoformat(state["last_seen"])
         hours = (datetime.now() - last).total_seconds() / 3600
+
+        # Hunger increases gradually (gets hungrier)
         state["hunger"] = min(10, state["hunger"] + hours * 0.3)
+
+        # Happiness decays slowly
         state["happiness"] = max(0, state["happiness"] - hours * 0.2)
-        state["energy"] = max(0, state["energy"] - hours * 0.1)
+
+        # Energy depends on time away:
+        # - If energy was low, it recharges up to a cap
+        # - If you left it for a long time, it fills up completely
+        recharge_rate = 2  # per hour (so ~5h = full recovery)
+        state["energy"] = min(10, state["energy"] + hours * recharge_rate)
+
+        # Save this update timestamp
+        state["last_seen"] = datetime.now().isoformat()
+
     except Exception:
         pass
 
 
+
 def act(state, action):
     if action == "play":
-        state["energy"] = max(0, state["energy"] - 1)
+        state["energy"] = max(0, state["energy"] - 0.5)
         state["happiness"] = min(10, state["happiness"] + 2)
     elif action == "feed":
         state["hunger"] = max(0, state["hunger"] - 3)
@@ -485,14 +499,12 @@ def main(stdscr):
             elif key in (ord("f"), ord("F")):
                 act(state, "feed")
                 action_mode = "feed"
-                state["action_timer"] = len(PET_FRAMES["eat"])  # one full animation cycle
-                message = "🍣 Mmm! That was delicious!"
+                state["action_timer"] = len(PET_FRAMES["eat"])
                 state["speech"] = "Nom"
                 state["message_timer"] = 3
             elif key in (ord("p"), ord("P")):
                 act(state, "play")
                 action_mode = "play"
-                message = f'🎾 {state["name"]} spots a ball!'
                 state["speech"] = "!"
                 state["message_timer"] = 3
                 state["behavior"] = "playing"
@@ -500,11 +512,9 @@ def main(stdscr):
                 state["ball_dir"] = random.choice([-1, 1])
                 state["ball_state"] = "idle"
                 state["play_delay_timer"] = random.randint(3, 6)
-                state["action_timer"] = 0
             elif key in (ord("t"), ord("T")):
                 act(state, "pet")
                 action_mode = "idle"
-                message = "❤️ Purr~ I like you!"
                 state["speech"] = "🫶"
                 state["message_timer"] = 3
             elif key in (ord("n"), ord("N")):
@@ -527,7 +537,6 @@ def main(stdscr):
 
         if state["ball_state"] == "gone" and state["behavior"] == "playing":
             state["behavior"] = "resting"
-            message = f'😸 {state["name"]} looks pleased!'
             state["speech"] = "Meow!"
             state["message_timer"] = 3
 

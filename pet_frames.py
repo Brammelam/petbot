@@ -1,6 +1,6 @@
 PET_FRAMES = {
     "cat": {
-        "idle": [
+        "resting": [
             "^•ﻌ•^",      # default
             "^-ﻌ-^",      # blink
             "^•ﻌ•^",      # open eyes
@@ -52,7 +52,7 @@ PET_FRAMES = {
         ]
     },
     "pig":{
-        "idle": [
+        "resting": [
             "(՞• Ꙫ•՞)",      # default
             "(՞- Ꙫ-՞)",      # blink
             "(՞• Ꙫ•՞)",      # open eyes
@@ -76,7 +76,7 @@ PET_FRAMES = {
         ],
         "sleep": [
             "(՞¯ Ꙫ¯՞)",
-            "(՞⎯ Ꙫ⎯՞)z",
+            "(՞– Ꙫ–՞)z",
             "(՞– Ꙫ–՞)zZ",
             "(՞– Ꙫ-՞)z",
         ],
@@ -96,8 +96,6 @@ PET_FRAMES = {
         ],
         "slap": [
             "(՞• Ꙫ•՞)",      # neutral
-            "(՞• Ꙫ•՞)",     # paw ready
-            "(՞• Ꙫ•՞)",     # paw swing back
             "(՞◔ Ꙫ◔՞) ɞ",   # slap!
             "(՞◕ Ꙫ◕՞)ɞ",    # follow-through
             "(՞• Ꙫ•՞)",      # reset
@@ -117,19 +115,19 @@ def get_frames(state, action_mode):
 
     # 2️⃣ Action-specific overrides (feed, slap, play)
     if action_mode == "feed":
-        return species_frames.get("eat", species_frames["idle"])
+        return species_frames.get("eat", species_frames["resting"])
     elif action_mode == "slap":
         return species_frames.get("slap", species_frames["play"])
     elif action_mode == "play":
-        return species_frames.get("play", species_frames["idle"])
+        return species_frames.get("play", species_frames["resting"])
 
     # 3️⃣ Movement (wandering)
     if state["behavior"] == "wandering":
         direction = state.get("direction", "right")
         if direction == "right":
-            return species_frames.get("walk_right", species_frames["idle"])
+            return species_frames.get("walk_right", species_frames["resting"])
         else:
-            return species_frames.get("walk_left", species_frames["idle"])
+            return species_frames.get("walk_left", species_frames["resting"])
 
     # 4️⃣ Default: idle
-    return species_frames["idle"]
+    return species_frames["resting"]

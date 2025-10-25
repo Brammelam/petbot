@@ -1,70 +1,57 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import curses, time, random
-from state import load_state, save_state, update_emotions
+import curses, time
+from state import load_state, update_emotions
 from behavior import update_behavior, update_wandering, update_ball, update_speech, say_hello
-from render import draw_frame
+from render import draw_frame, update_animation
 from game_actions import handle_input
-from pet_frames import get_frames
-from utils import DEFAULT_PEN_HEIGHT, DEFAULT_PEN_WIDTH
+from utils import DEFAULT_PEN_HEIGHT, DEFAULT_PEN_WIDTH, init_colors, save_state
 
-FPS = 1
+FPS = 1.5
+
+speed_map = {
+    "playing": 0.3,
+    "wandering": 0.3,
+    "eating": 0.5,
+    "sleeping": 0.8,
+    "resting": 1 / FPS
+}
 
 def main(stdscr):
     curses.curs_set(0)
+    curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
+    curses.mouseinterval(0)
+    init_colors()
     stdscr.nodelay(True)
     state = load_state()
+    state["frame_index"] = 0 # reset always
+    state["ball_state"] = "gone" # reset always
     update_emotions(state)
-    frame_index = 0
-    action_mode = "idle"
+    
     say_hello(state)
 
     try:
         while True:
             stdscr.clear()
-
+            update_behavior(state)
             update_wandering(state, DEFAULT_PEN_WIDTH, DEFAULT_PEN_HEIGHT)
             update_ball(state, DEFAULT_PEN_WIDTH)
             update_speech(state)
-            if frame_index % 3 == 0:
-                update_behavior(state)
-
-            # --- Frame selection ---
-            frames = get_frames(state, action_mode)
-            if action_mode in ("feed", "play", "pet"):
-                # use per-action animation counter
-                frame_to_draw = frames[state.get("action_frame", 0) % len(frames)]
-            else:
-                # use global idle/walk/sleep frame cycle
-                frame_to_draw = frames[frame_index % len(frames)]
-
-            draw_frame(stdscr, state, [frame_to_draw], frame_index, DEFAULT_PEN_WIDTH)
+            update_animation(state)
+            draw_frame(stdscr, state)
 
             # --- Input handling ---
             key = stdscr.getch()
             if key != -1:
-                keep_running, action_mode = handle_input(stdscr, key, state, action_mode)
+                keep_running = handle_input(stdscr, key, state)
                 if not keep_running:
                     break
 
             # --- Timing ---
-            if state["behavior"] == "playing":
-                time.sleep(0.5)
-            else:
-                time.sleep(1 / FPS)
+            time.sleep(speed_map.get(state["behavior"], 1 / FPS))
 
-            # --- Action timer logic ---
-            if state.get("action_timer", 0) > 0:
-                state["action_timer"] -= 1
-                state["action_frame"] += 1
-                if state["action_frame"] >= len(frames):
-                    action_mode = "idle"
-                    state["action_timer"] = 0
-                    state["action_frame"] = 0
-            else:
-                state["action_frame"] = 0
-
-            frame_index += 1
+            if state.get("render_click_timer", 0) > 0:
+               state["render_click_timer"] = max(0, state.get("render_click_timer", 0) - 1)
 
     finally:
         save_state(state)
